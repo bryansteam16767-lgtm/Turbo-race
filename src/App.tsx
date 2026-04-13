@@ -215,6 +215,13 @@ export default function App() {
     await setDoc(doc(db, 'tournaments', tournamentData.id), tournamentData);
   };
 
+  const handleFinishTournament = async (tournamentId: string) => {
+    if (!isAdmin) return;
+    await updateDoc(doc(db, 'tournaments', tournamentId), {
+      status: 'completed'
+    });
+  };
+
   const handleBuyItem = async (item: typeof SHOP_ITEMS[0]) => {
     if (!user || !userProfile) return;
     if (userProfile.coins < item.price) {
@@ -412,11 +419,21 @@ export default function App() {
                       <h3 className="text-xl font-bold text-white">{t.name}</h3>
                       <p className="text-slate-400 text-sm">Started on {new Date(t.createdAt).toLocaleDateString()}</p>
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Grand Prize</div>
-                      <div className="text-2xl font-mono font-bold text-yellow-400 flex items-center gap-2 justify-end">
-                        <Coins size={20} /> {t.prize.toLocaleString()}
+                    <div className="text-right flex flex-col items-end gap-2">
+                      <div>
+                        <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Grand Prize</div>
+                        <div className="text-2xl font-mono font-bold text-yellow-400 flex items-center gap-2 justify-end">
+                          <Coins size={20} /> {t.prize.toLocaleString()}
+                        </div>
                       </div>
+                      {isAdmin && (
+                        <button
+                          onClick={() => handleFinishTournament(t.id)}
+                          className="bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white px-4 py-1.5 rounded-lg text-xs font-bold transition-all border border-red-500/30"
+                        >
+                          FINISH TOURNAMENT
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
