@@ -371,7 +371,7 @@ const GameScene = ({
   );
 };
 
-export default function GameCanvas({ initialPlayers }: { initialPlayers?: Record<string, Player> }) {
+export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPlayers?: Record<string, Player>, onNewBestLap?: (time: number) => void }) {
   // Sanitize initial players to handle Infinity/null issue
   const sanitizedInitial = useMemo(() => {
       if (!initialPlayers) return {};
@@ -723,6 +723,11 @@ export default function GameCanvas({ initialPlayers }: { initialPlayers?: Record
 
               // Send to server
               socket.emit('lapFinished', lapTime);
+
+              // Update Firestore via callback
+              if (onNewBestLap) {
+                  onNewBestLap(lapTime);
+              }
           }
           
           // Reset checkpoint for next lap

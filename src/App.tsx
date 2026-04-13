@@ -14,7 +14,7 @@ import { socket } from './services/socket';
 import { Player } from './types';
 import { auth, signInWithGoogle, logout, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { LogOut, User as UserIcon, Trophy } from 'lucide-react';
 
 export default function App() {
@@ -134,6 +134,16 @@ export default function App() {
     socket.emit('startGame');
   };
 
+  const handleNewBestLap = async (lapTime: number) => {
+    if (!user || !userProfile) return;
+    
+    if (lapTime < (userProfile.bestLapTime || Infinity)) {
+      const updatedProfile = { ...userProfile, bestLapTime: lapTime };
+      setUserProfile(updatedProfile);
+      await updateDoc(doc(db, 'users', user.uid), { bestLapTime: lapTime });
+    }
+  };
+
   const handleToggleSpectate = () => {
     socket.emit('toggleSpectator');
   };
@@ -156,7 +166,7 @@ export default function App() {
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end">
               <span className="text-sm font-bold text-slate-300">{user.displayName}</span>
-              {userProfile?.bestLapTime !== Infinity && (
+              {userProfile && userProfile.bestLapTime !== Infinity && (
                 <span className="text-[10px] text-yellow-500 uppercase tracking-wider flex items-center gap-1">
                   <Trophy size={10} /> Best: {Math.floor(userProfile.bestLapTime / 1000)}s
                 </span>
@@ -296,7 +306,7 @@ export default function App() {
         )}
 
         {view === 'game' && (
-          <GameCanvas initialPlayers={players} />
+          <GameCanvas initialPlayers={players} onNewBestLap={handleNewBestLap} />
         )}
       </main>
     </div>
