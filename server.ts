@@ -144,6 +144,25 @@ async function startServer() {
       }
     });
 
+    socket.on("kickPlayer", (targetId: string) => {
+      const roomId = socketRoomMap[socket.id];
+      if (roomId && rooms[roomId]) {
+        const admin = rooms[roomId].players[socket.id];
+        if (admin && admin.isAdmin) {
+          const targetSocket = io.sockets.sockets.get(targetId);
+          if (targetSocket) {
+            targetSocket.emit("error", "You have been kicked by the Creator");
+            targetSocket.leave(roomId);
+            
+            delete rooms[roomId].players[targetId];
+            delete socketRoomMap[targetId];
+            
+            io.to(roomId).emit("playerDisconnected", targetId);
+          }
+        }
+      }
+    });
+
     // Game Events (Scoped to Room)
     socket.on("playerMovement", (movementData) => {
       const roomId = socketRoomMap[socket.id];

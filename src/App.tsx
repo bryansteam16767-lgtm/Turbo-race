@@ -158,6 +158,10 @@ export default function App() {
     socket.emit('toggleSpectator');
   };
 
+  const handleKick = (targetId: string) => {
+    socket.emit('kickPlayer', targetId);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
@@ -275,7 +279,18 @@ export default function App() {
                                   <span className="font-bold truncate leading-none">{p.name}</span>
                                   {p.isAdmin && <span className="text-[8px] text-red-400 font-black uppercase tracking-tighter mt-0.5">Creator</span>}
                                 </div>
-                                {p.id === socket.id && <span className="text-xs text-slate-400">(You)</span>}
+                                {p.id === socket.id ? (
+                                  <span className="text-xs text-slate-400">(You)</span>
+                                ) : (
+                                  isAdmin && (
+                                    <button 
+                                      onClick={() => handleKick(p.id)}
+                                      className="ml-auto text-[10px] bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white px-2 py-1 rounded transition-colors font-bold uppercase"
+                                    >
+                                      Kick
+                                    </button>
+                                  )
+                                )}
                             </div>
                         ))}
                     </div>
@@ -290,7 +305,18 @@ export default function App() {
                                           <span className="text-sm truncate leading-none">{p.name}</span>
                                           {p.isAdmin && <span className="text-[8px] text-red-400 font-black uppercase tracking-tighter mt-0.5">Creator</span>}
                                         </div>
-                                        {p.id === socket.id && <span className="text-xs text-slate-400">(You)</span>}
+                                        {p.id === socket.id ? (
+                                          <span className="text-xs text-slate-400">(You)</span>
+                                        ) : (
+                                          isAdmin && (
+                                            <button 
+                                              onClick={() => handleKick(p.id)}
+                                              className="ml-auto text-[10px] bg-red-900/30 hover:bg-red-600 text-red-400 hover:text-white px-2 py-1 rounded transition-colors font-bold uppercase"
+                                            >
+                                              Kick
+                                            </button>
+                                          )
+                                        )}
                                     </div>
                                 ))}
                             </div>
