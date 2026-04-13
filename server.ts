@@ -81,10 +81,11 @@ async function startServer() {
     console.log(`Player connected: ${socket.id}`);
 
     // Room Management
-    socket.on("createRoom", () => {
+    socket.on("createRoom", ({ name }: { name: string }) => {
       const roomId = generateRoomCode();
       const colorInfo = COLORS[0];
       const newPlayer = createPlayer(socket.id, colorInfo);
+      newPlayer.name = name || newPlayer.name;
       
       rooms[roomId] = {
         id: roomId,
@@ -99,13 +100,14 @@ async function startServer() {
       socket.emit("roomCreated", { roomId, players: rooms[roomId].players, isHost: true });
     });
 
-    socket.on("joinRoom", ({ roomId }) => {
+    socket.on("joinRoom", ({ roomId, name }: { roomId: string, name: string }) => {
       if (rooms[roomId] && rooms[roomId].status === 'waiting') {
         const room = rooms[roomId];
         const usedColors = Object.values(room.players).map(p => p.name);
         const availableColor = COLORS.find(c => !usedColors.includes(c.name)) || COLORS[Math.floor(Math.random() * COLORS.length)];
         
         const newPlayer = createPlayer(socket.id, availableColor);
+        newPlayer.name = name || newPlayer.name;
         
         room.players[socket.id] = newPlayer;
         socketRoomMap[socket.id] = roomId;

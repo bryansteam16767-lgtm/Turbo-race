@@ -1,0 +1,23 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "User profile and game statistics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "displayName": { "type": "string", "description": "User's display name" },
+        "photoURL": { "type": "string", "description": "User's profile picture URL" },
+        "bestLapTime": { "type": "number", "description": "All-time best lap time in ms" },
+        "totalRaces": { "type": "number", "description": "Total number of races completed" }
+      },
+      "required": ["uid", "displayName"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile document"
+    }
+  }
+}

@@ -12,14 +12,48 @@ import React, { useState, useEffect } from 'react';
 import GameCanvas from './components/GameCanvas';
 import { socket } from './services/socket';
 import { Player } from './types';
+import { auth, signInWithGoogle, logout, db } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { LogOut, User as UserIcon, Trophy } from 'lucide-react';
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'landing' | 'lobby' | 'game'>('landing');
   const [roomCode, setRoomCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [players, setPlayers] = useState<Record<string, Player>>({});
   const [isHost, setIsHost] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+        if (userDoc.exists()) {
+          setUserProfile(userDoc.data());
+        } else {
+          const newProfile = {
+            uid: currentUser.uid,
+            displayName: currentUser.displayName || 'Racer',
+            photoURL: currentUser.photoURL || '',
+            bestLapTime: Infinity,
+            totalRaces: 0
+          };
+          await setDoc(doc(db, 'users', currentUser.uid), newProfile);
+          setUserProfile(newProfile);
+        }
+      } else {
+        setUserProfile(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     socket.on('roomCreated', ({ roomId, players, isHost }) => {
@@ -82,16 +116,18 @@ export default function App() {
   }, []);
 
   const handleCreate = () => {
-    socket.emit('createRoom');
+    if (!user) return;
+    socket.emit('createRoom', { name: user.displayName });
   };
 
   const handleJoin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
     if (!joinCode.trim() || joinCode.length !== 6) {
         setError('Please enter a valid 6-character room code');
         return;
     }
-    socket.emit('joinRoom', { roomId: joinCode.toUpperCase() });
+    socket.emit('joinRoom', { roomId: joinCode.toUpperCase(), name: user.displayName });
   };
 
   const handleStartGame = () => {
@@ -102,12 +138,39 @@ export default function App() {
     socket.emit('toggleSpectator');
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-yellow-500"></div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen bg-slate-900 flex flex-col items-center ${view === 'game' ? 'justify-start' : 'justify-center'} font-sans text-slate-100`}>
       <header className={`w-full max-w-4xl mx-auto ${view === 'game' ? 'p-2' : 'p-6'} flex justify-between items-center transition-all`}>
         <h1 className={`${view === 'game' ? 'text-2xl' : 'text-4xl'} font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 transform -skew-x-12 transition-all`}>
           TURBO RACE
         </h1>
+        {user && view !== 'game' && (
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col items-end">
+              <span className="text-sm font-bold text-slate-300">{user.displayName}</span>
+              {userProfile?.bestLapTime !== Infinity && (
+                <span className="text-[10px] text-yellow-500 uppercase tracking-wider flex items-center gap-1">
+                  <Trophy size={10} /> Best: {Math.floor(userProfile.bestLapTime / 1000)}s
+                </span>
+              )}
+            </div>
+            <button 
+              onClick={logout}
+              className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-red-400 transition-colors"
+              title="Logout"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+        )}
       </header>
 
       <main className={`flex-1 w-full flex flex-col items-center ${view === 'game' ? 'p-0' : 'p-4'} transition-all`}>
@@ -118,40 +181,50 @@ export default function App() {
             <div className="space-y-6">
               {error && <div className="text-red-400 text-sm text-center bg-red-900/20 p-2 rounded">{error}</div>}
 
-              <div className="grid grid-cols-1 gap-4">
+              {!user ? (
                 <button
-                  onClick={handleCreate}
-                  className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-black font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95"
+                  onClick={signInWithGoogle}
+                  className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-3 rounded-lg shadow-lg flex items-center justify-center gap-3 transition-transform active:scale-95"
                 >
-                  CREATE RACE
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                  SIGN IN WITH GOOGLE
                 </button>
-                
-                <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-slate-700"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-slate-800 text-slate-500">Or join a friend</span>
-                    </div>
-                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={handleCreate}
+                    className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-black font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95"
+                  >
+                    CREATE RACE
+                  </button>
+                  
+                  <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-slate-700"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-slate-800 text-slate-500">Or join a friend</span>
+                      </div>
+                  </div>
 
-                <form onSubmit={handleJoin} className="flex gap-2">
-                    <input
-                        type="text"
-                        value={joinCode}
-                        onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white uppercase tracking-widest font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                        placeholder="CODE"
-                        maxLength={6}
-                    />
-                    <button
-                        type="submit"
-                        className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-lg shadow-lg transition-transform active:scale-95"
-                    >
-                        JOIN
-                    </button>
-                </form>
-              </div>
+                  <form onSubmit={handleJoin} className="flex gap-2">
+                      <input
+                          type="text"
+                          value={joinCode}
+                          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                          className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white uppercase tracking-widest font-mono focus:ring-2 focus:ring-blue-500 outline-none"
+                          placeholder="CODE"
+                          maxLength={6}
+                      />
+                      <button
+                          type="submit"
+                          className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-lg shadow-lg transition-transform active:scale-95"
+                      >
+                          JOIN
+                      </button>
+                  </form>
+                </div>
+              )}
             </div>
           </div>
         )}
