@@ -29,6 +29,7 @@ async function startServer() {
     nitro: number;
     drifting: boolean;
     isSpectator: boolean;
+    isAdmin: boolean;
   };
 
   type Room = {
@@ -60,7 +61,7 @@ async function startServer() {
     { name: 'Pink', value: 'hsl(330, 70%, 50%)' },
   ];
 
-  const createPlayer = (id: string, colorInfo: { name: string, value: string }, isSpectator: boolean = false): Player => ({
+  const createPlayer = (id: string, colorInfo: { name: string, value: string }, isSpectator: boolean = false, isAdmin: boolean = false): Player => ({
     id,
     x: 650 + (Math.random() * 40 - 20),
     y: 750 + (Math.random() * 20 - 10),
@@ -74,6 +75,7 @@ async function startServer() {
     nitro: 100,
     drifting: false,
     isSpectator,
+    isAdmin,
   });
 
   // Socket.io Logic
@@ -81,10 +83,10 @@ async function startServer() {
     console.log(`Player connected: ${socket.id}`);
 
     // Room Management
-    socket.on("createRoom", ({ name }: { name: string }) => {
+    socket.on("createRoom", ({ name, isAdmin }: { name: string, isAdmin?: boolean }) => {
       const roomId = generateRoomCode();
       const colorInfo = COLORS[0];
-      const newPlayer = createPlayer(socket.id, colorInfo);
+      const newPlayer = createPlayer(socket.id, colorInfo, false, isAdmin);
       newPlayer.name = name || newPlayer.name;
       
       rooms[roomId] = {
@@ -100,13 +102,13 @@ async function startServer() {
       socket.emit("roomCreated", { roomId, players: rooms[roomId].players, isHost: true });
     });
 
-    socket.on("joinRoom", ({ roomId, name }: { roomId: string, name: string }) => {
+    socket.on("joinRoom", ({ roomId, name, isAdmin }: { roomId: string, name: string, isAdmin?: boolean }) => {
       if (rooms[roomId] && rooms[roomId].status === 'waiting') {
         const room = rooms[roomId];
         const usedColors = Object.values(room.players).map(p => p.name);
         const availableColor = COLORS.find(c => !usedColors.includes(c.name)) || COLORS[Math.floor(Math.random() * COLORS.length)];
         
-        const newPlayer = createPlayer(socket.id, availableColor);
+        const newPlayer = createPlayer(socket.id, availableColor, false, isAdmin);
         newPlayer.name = name || newPlayer.name;
         
         room.players[socket.id] = newPlayer;

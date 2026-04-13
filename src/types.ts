@@ -16,4 +16,5 @@ export type Player = {
   nitro: number;
   drifting: boolean;
   isSpectator: boolean;
+  isAdmin: boolean;
 };

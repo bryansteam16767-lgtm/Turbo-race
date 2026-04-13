@@ -837,10 +837,13 @@ export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPl
                     .sort((a, b) => (a.bestLapTime || Infinity) - (b.bestLapTime || Infinity))
                     .slice(0, 5)
                     .map((p, i) => (
-                      <div key={p.id} className="flex justify-between text-sm">
-                          <span className={`${p.id === socket.id ? 'text-yellow-400 font-bold' : 'text-slate-300'} truncate max-w-[120px]`}>
-                              {i+1}. {p.name}
-                          </span>
+                      <div key={p.id} className="flex justify-between text-sm items-center">
+                          <div className="flex flex-col min-w-0">
+                            <span className={`${p.id === socket.id ? 'text-yellow-400 font-bold' : 'text-slate-300'} truncate max-w-[120px] leading-none`}>
+                                {i+1}. {p.name}
+                            </span>
+                            {p.isAdmin && <span className="text-[7px] text-red-400 font-black uppercase tracking-tighter">Creator</span>}
+                          </div>
                           <span className="font-mono text-slate-400">
                               {p.bestLapTime !== Infinity ? formatTime(p.bestLapTime) : '-'}
                           </span>

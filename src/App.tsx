@@ -20,6 +20,7 @@ import { LogOut, User as UserIcon, Trophy } from 'lucide-react';
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'landing' | 'lobby' | 'game'>('landing');
   const [roomCode, setRoomCode] = useState('');
@@ -32,22 +33,31 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
+        setIsAdmin(currentUser.email === 'oreviera1@gmail.com');
         const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
         if (userDoc.exists()) {
-          setUserProfile(userDoc.data());
+          const data = userDoc.data();
+          setUserProfile(data);
+          // Update role if it's the admin email but role isn't set
+          if (currentUser.email === 'oreviera1@gmail.com' && data.role !== 'admin') {
+            await updateDoc(doc(db, 'users', currentUser.uid), { role: 'admin' });
+            setUserProfile({ ...data, role: 'admin' });
+          }
         } else {
           const newProfile = {
             uid: currentUser.uid,
             displayName: currentUser.displayName || 'Racer',
             photoURL: currentUser.photoURL || '',
             bestLapTime: Infinity,
-            totalRaces: 0
+            totalRaces: 0,
+            role: currentUser.email === 'oreviera1@gmail.com' ? 'admin' : 'user'
           };
           await setDoc(doc(db, 'users', currentUser.uid), newProfile);
           setUserProfile(newProfile);
         }
       } else {
         setUserProfile(null);
+        setIsAdmin(false);
       }
       setLoading(false);
     });
@@ -117,7 +127,7 @@ export default function App() {
 
   const handleCreate = () => {
     if (!user) return;
-    socket.emit('createRoom', { name: user.displayName });
+    socket.emit('createRoom', { name: user.displayName, isAdmin });
   };
 
   const handleJoin = (e: React.FormEvent) => {
@@ -127,7 +137,7 @@ export default function App() {
         setError('Please enter a valid 6-character room code');
         return;
     }
-    socket.emit('joinRoom', { roomId: joinCode.toUpperCase(), name: user.displayName });
+    socket.emit('joinRoom', { roomId: joinCode.toUpperCase(), name: user.displayName, isAdmin });
   };
 
   const handleStartGame = () => {
@@ -165,7 +175,10 @@ export default function App() {
         {user && view !== 'game' && (
           <div className="flex items-center gap-4">
             <div className="flex flex-col items-end">
-              <span className="text-sm font-bold text-slate-300">{user.displayName}</span>
+              <div className="flex items-center gap-2">
+                {isAdmin && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Creator</span>}
+                <span className="text-sm font-bold text-slate-300">{user.displayName}</span>
+              </div>
               {userProfile && userProfile.bestLapTime !== Infinity && (
                 <span className="text-[10px] text-yellow-500 uppercase tracking-wider flex items-center gap-1">
                   <Trophy size={10} /> Best: {Math.floor(userProfile.bestLapTime / 1000)}s
@@ -258,7 +271,10 @@ export default function App() {
                         {Object.values(players).filter(p => !p.isSpectator).map(p => (
                             <div key={p.id} className="bg-slate-700/50 p-3 rounded-lg flex items-center gap-3 border border-slate-600">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }}></div>
-                                <span className="font-bold truncate">{p.name}</span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="font-bold truncate leading-none">{p.name}</span>
+                                  {p.isAdmin && <span className="text-[8px] text-red-400 font-black uppercase tracking-tighter mt-0.5">Creator</span>}
+                                </div>
                                 {p.id === socket.id && <span className="text-xs text-slate-400">(You)</span>}
                             </div>
                         ))}
@@ -270,7 +286,10 @@ export default function App() {
                             <div className="grid grid-cols-2 gap-3 mb-6 opacity-60">
                                 {Object.values(players).filter(p => p.isSpectator).map(p => (
                                     <div key={p.id} className="bg-slate-800/50 p-2 rounded-lg flex items-center gap-3 border border-slate-700">
-                                        <span className="text-sm truncate">{p.name}</span>
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="text-sm truncate leading-none">{p.name}</span>
+                                          {p.isAdmin && <span className="text-[8px] text-red-400 font-black uppercase tracking-tighter mt-0.5">Creator</span>}
+                                        </div>
                                         {p.id === socket.id && <span className="text-xs text-slate-400">(You)</span>}
                                     </div>
                                 ))}
