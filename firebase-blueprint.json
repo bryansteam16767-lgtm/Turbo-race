@@ -9,15 +9,36 @@
         "displayName": { "type": "string", "description": "User's display name" },
         "photoURL": { "type": "string", "description": "User's profile picture URL" },
         "bestLapTime": { "type": "number", "description": "All-time best lap time in ms" },
-        "totalRaces": { "type": "number", "description": "Total number of races completed" }
+        "totalRaces": { "type": "number", "description": "Total number of races completed" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "coins": { "type": "number", "description": "Player's coin balance" },
+        "inventory": { "type": "array", "items": { "type": "string" }, "description": "Purchased items" }
       },
       "required": ["uid", "displayName"]
+    },
+    "tournaments": {
+      "title": "Tournament",
+      "description": "Tournament details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "prize": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "completed"] },
+        "winnerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "prize", "status"]
     }
   },
   "firestore": {
     "/users/{userId}": {
       "schema": "users",
       "description": "User profile document"
+    },
+    "/tournaments/{tournamentId}": {
+      "schema": "tournaments",
+      "description": "Tournament document"
     }
   }
 }

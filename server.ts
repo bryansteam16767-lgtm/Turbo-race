@@ -30,6 +30,8 @@ async function startServer() {
     drifting: boolean;
     isSpectator: boolean;
     isAdmin: boolean;
+    coins: number;
+    inventory: string[];
   };
 
   type Room = {
@@ -76,6 +78,8 @@ async function startServer() {
     drifting: false,
     isSpectator,
     isAdmin,
+    coins: 0,
+    inventory: [],
   });
 
   // Socket.io Logic
@@ -192,6 +196,11 @@ async function startServer() {
           }
           player.lastLapStart = Date.now();
           io.to(roomId).emit("lapUpdate", { id: player.id, laps: player.laps, bestLapTime: player.bestLapTime });
+
+          // Check for race finish (e.g., 3 laps)
+          if (player.laps >= 3) {
+            io.to(roomId).emit("raceFinished", { winnerId: player.id, winnerName: player.name });
+          }
         }
       }
     });

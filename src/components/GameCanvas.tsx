@@ -384,6 +384,7 @@ export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPl
   const [players, setPlayers] = useState<Record<string, Player>>(sanitizedInitial);
   const [myId, setMyId] = useState<string | null>(socket.id || null);
   const [laps, setLaps] = useState(0);
+  const [controlsDisabled, setControlsDisabled] = useState(false);
   const [lastLapTime, setLastLapTime] = useState<number | null>(null);
   const [currentLapStart, setCurrentLapStart] = useState<number>(Date.now());
   const [nitro, setNitro] = useState(100);
@@ -515,6 +516,10 @@ export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPl
       });
     });
 
+    socket.on('raceFinished', () => {
+      setControlsDisabled(true);
+    });
+
     return () => {
       socket.off('connect');
       socket.off('playerJoinedRoom');
@@ -553,33 +558,38 @@ export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPl
       const oldX = p.x;
       const oldY = p.y;
       
-      // Acceleration
-      if (p.keys['ArrowUp'] || p.keys['KeyW']) {
-        p.speed += ACCELERATION;
-      } else if (p.keys['ArrowDown'] || p.keys['KeyS']) {
-        p.speed -= ACCELERATION;
-      } else {
-        p.speed *= FRICTION;
-      }
+      if (!controlsDisabled) {
+        // Acceleration
+        if (p.keys['ArrowUp'] || p.keys['KeyW']) {
+          p.speed += ACCELERATION;
+        } else if (p.keys['ArrowDown'] || p.keys['KeyS']) {
+          p.speed -= ACCELERATION;
+        } else {
+          p.speed *= FRICTION;
+        }
 
-      // Nitro
-      if ((p.keys['ShiftLeft'] || p.keys['ShiftRight']) && p.nitro > 0) {
-          p.speed += NITRO_ACCEL;
-          p.nitro = Math.max(0, p.nitro - 1);
-      } else {
-          p.nitro = Math.min(100, p.nitro + 0.2);
-      }
-      setNitro(p.nitro);
+        // Nitro
+        if ((p.keys['ShiftLeft'] || p.keys['ShiftRight']) && p.nitro > 0) {
+            p.speed += NITRO_ACCEL;
+            p.nitro = Math.max(0, p.nitro - 1);
+        } else {
+            p.nitro = Math.min(100, p.nitro + 0.2);
+        }
+        setNitro(p.nitro);
 
-      // Drifting Logic
-      // Drift if turning + Spacebar OR turning sharply at high speed
-      const isTurning = p.keys['ArrowLeft'] || p.keys['KeyA'] || p.keys['ArrowRight'] || p.keys['KeyD'];
-      const wantsDrift = p.keys['Space'];
-      
-      if (wantsDrift && isTurning && Math.abs(p.speed) > 1.5) {
-          p.drifting = true;
+        // Drifting Logic
+        const isTurning = p.keys['ArrowLeft'] || p.keys['KeyA'] || p.keys['ArrowRight'] || p.keys['KeyD'];
+        const wantsDrift = p.keys['Space'];
+        
+        if (wantsDrift && isTurning && Math.abs(p.speed) > 1.5) {
+            p.drifting = true;
+        } else {
+            p.drifting = false;
+        }
       } else {
-          p.drifting = false;
+        // Decelerate to stop when race is finished
+        p.speed *= 0.95;
+        p.drifting = false;
       }
 
       // Max Speed Cap

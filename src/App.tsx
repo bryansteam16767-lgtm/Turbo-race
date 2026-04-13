@@ -14,15 +14,24 @@ import { socket } from './services/socket';
 import { Player } from './types';
 import { auth, signInWithGoogle, logout, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { LogOut, User as UserIcon, Trophy } from 'lucide-react';
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { LogOut, User as UserIcon, Trophy, ShoppingBag, Coins, Flag, Star } from 'lucide-react';
+
+const SHOP_ITEMS = [
+  { id: 'neon_blue', name: 'Neon Blue Car', price: 5000000, color: '#00f2ff' },
+  { id: 'gold_rims', name: 'Gold Rims', price: 10000000, color: '#ffd700' },
+  { id: 'super_nitro', name: 'Super Nitro', price: 20000000, color: '#ff4d00' },
+  { id: 'creator_skin', name: 'Creator Skin', price: 40000000, color: '#ff0000' },
+];
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<'landing' | 'lobby' | 'game'>('landing');
+  const [view, setView] = useState<'landing' | 'lobby' | 'game' | 'shop' | 'tournaments'>('landing');
+  const [activeTournaments, setActiveTournaments] = useState<any[]>([]);
+  const [winner, setWinner] = useState<{ id: string, name: string } | null>(null);
   const [roomCode, setRoomCode] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [players, setPlayers] = useState<Record<string, Player>>({});
@@ -50,6 +59,8 @@ export default function App() {
             photoURL: currentUser.photoURL || '',
             bestLapTime: Infinity,
             totalRaces: 0,
+            coins: 1000000, // Starter coins
+            inventory: [],
             role: currentUser.email === 'oreviera1@gmail.com' ? 'admin' : 'user'
           };
           await setDoc(doc(db, 'users', currentUser.uid), newProfile);
@@ -62,7 +73,17 @@ export default function App() {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listen for active tournaments
+    const q = query(collection(db, 'tournaments'), where('status', '==', 'active'), orderBy('createdAt', 'desc'));
+    const unsubscribeTournaments = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setActiveTournaments(docs);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubscribeTournaments();
+    };
   }, []);
 
   useEffect(() => {
@@ -101,6 +122,30 @@ export default function App() {
     socket.on('gameStarted', (initialPlayers) => {
       setPlayers(initialPlayers);
       setView('game');
+    });
+
+    socket.on('raceFinished', async ({ winnerId, winnerName }) => {
+      setWinner({ id: winnerId, name: winnerName });
+      
+      if (socket.id === winnerId && user && userProfile) {
+        // If there's an active tournament, award the prize
+        const activeTournament = activeTournaments[0];
+        const prize = activeTournament ? activeTournament.prize : 500000; // Default win prize
+        
+        const newCoins = (userProfile.coins || 0) + prize;
+        await updateDoc(doc(db, 'users', user.uid), { 
+          coins: newCoins,
+          totalRaces: (userProfile.totalRaces || 0) + 1
+        });
+        setUserProfile(prev => ({ ...prev, coins: newCoins }));
+
+        if (activeTournament) {
+          await updateDoc(doc(db, 'tournaments', activeTournament.id), {
+            status: 'completed',
+            winnerId: user.uid
+          });
+        }
+      }
     });
 
     socket.on('error', (msg) => {
@@ -158,6 +203,40 @@ export default function App() {
     socket.emit('toggleSpectator');
   };
 
+  const handleCreateTournament = async () => {
+    if (!isAdmin) return;
+    const tournamentData = {
+      id: Math.random().toString(36).substring(7),
+      name: "Grand Prix " + new Date().toLocaleDateString(),
+      prize: 40000000,
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+    await setDoc(doc(db, 'tournaments', tournamentData.id), tournamentData);
+  };
+
+  const handleBuyItem = async (item: typeof SHOP_ITEMS[0]) => {
+    if (!user || !userProfile) return;
+    if (userProfile.coins < item.price) {
+      setError("Not enough coins!");
+      return;
+    }
+    if (userProfile.inventory?.includes(item.id)) {
+      setError("Already owned!");
+      return;
+    }
+
+    const newCoins = userProfile.coins - item.price;
+    const newInventory = [...(userProfile.inventory || []), item.id];
+    
+    await updateDoc(doc(db, 'users', user.uid), {
+      coins: newCoins,
+      inventory: newInventory
+    });
+    
+    setUserProfile(prev => ({ ...prev, coins: newCoins, inventory: newInventory }));
+  };
+
   const handleKick = (targetId: string) => {
     socket.emit('kickPlayer', targetId);
   };
@@ -177,7 +256,13 @@ export default function App() {
           TURBO RACE
         </h1>
         {user && view !== 'game' && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+              <Coins className="text-yellow-500" size={18} />
+              <span className="font-mono font-bold text-yellow-400">
+                {(userProfile?.coins || 0).toLocaleString()}
+              </span>
+            </div>
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-2">
                 {isAdmin && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Creator</span>}
@@ -199,6 +284,12 @@ export default function App() {
           </div>
         )}
       </header>
+
+      <nav className={`w-full max-w-4xl mx-auto flex gap-4 px-6 mb-4 ${view === 'game' ? 'hidden' : ''}`}>
+        <button onClick={() => setView('landing')} className={`px-4 py-2 rounded-lg font-bold transition-all ${view === 'landing' ? 'bg-yellow-500 text-black' : 'text-slate-400 hover:text-white'}`}>RACE</button>
+        <button onClick={() => setView('shop')} className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${view === 'shop' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}><ShoppingBag size={18}/> SHOP</button>
+        <button onClick={() => setView('tournaments')} className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${view === 'tournaments' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}><Flag size={18}/> TOURNAMENTS</button>
+      </nav>
 
       <main className={`flex-1 w-full flex flex-col items-center ${view === 'game' ? 'p-0' : 'p-4'} transition-all`}>
         {view === 'landing' && (
@@ -256,9 +347,96 @@ export default function App() {
           </div>
         )}
 
+        {view === 'shop' && (
+          <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 max-w-4xl w-full">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-black italic tracking-tighter text-blue-400">TURBO SHOP</h2>
+              <div className="flex items-center gap-2 bg-black/30 px-4 py-2 rounded-xl border border-slate-600">
+                <Coins className="text-yellow-500" size={24} />
+                <span className="text-2xl font-mono font-bold text-yellow-400">{(userProfile?.coins || 0).toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {SHOP_ITEMS.map(item => (
+                <div key={item.id} className="bg-slate-900 p-6 rounded-xl border border-slate-700 flex justify-between items-center group hover:border-blue-500 transition-all">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-lg shadow-inner" style={{ backgroundColor: item.color }}></div>
+                    <div>
+                      <h3 className="font-bold text-lg">{item.name}</h3>
+                      <div className="flex items-center gap-1 text-yellow-500 font-mono text-sm">
+                        <Coins size={14} /> {item.price.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleBuyItem(item)}
+                    disabled={userProfile?.inventory?.includes(item.id)}
+                    className={`px-6 py-2 rounded-lg font-bold transition-all ${
+                      userProfile?.inventory?.includes(item.id)
+                      ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-500 text-white active:scale-95'
+                    }`}
+                  >
+                    {userProfile?.inventory?.includes(item.id) ? 'OWNED' : 'BUY'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {view === 'tournaments' && (
+          <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 max-w-4xl w-full">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-black italic tracking-tighter text-purple-400">TOURNAMENTS</h2>
+              {isAdmin && (
+                <button
+                  onClick={handleCreateTournament}
+                  className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-lg shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                >
+                  <Star size={18} /> CREATE TOURNAMENT
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {activeTournaments.length === 0 ? (
+                <div className="text-center py-12 text-slate-500 italic bg-slate-900/50 rounded-xl border border-dashed border-slate-700">
+                  No active tournaments. Wait for the Creator to start one!
+                </div>
+              ) : (
+                activeTournaments.map(t => (
+                  <div key={t.id} className="bg-slate-900 p-6 rounded-xl border-l-4 border-purple-500 flex justify-between items-center">
+                    <div>
+                      <h3 className="text-xl font-bold text-white">{t.name}</h3>
+                      <p className="text-slate-400 text-sm">Started on {new Date(t.createdAt).toLocaleDateString()}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-slate-500 uppercase tracking-widest mb-1">Grand Prize</div>
+                      <div className="text-2xl font-mono font-bold text-yellow-400 flex items-center gap-2 justify-end">
+                        <Coins size={20} /> {t.prize.toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
         {view === 'lobby' && (
             <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl border border-slate-700 max-w-2xl w-full">
                 <div className="text-center mb-8">
+                    {activeTournaments.length > 0 && (
+                      <div className="mb-4 bg-purple-600/20 border border-purple-500/50 rounded-xl p-3 flex items-center justify-center gap-3 animate-pulse">
+                        <Star className="text-purple-400" size={20} />
+                        <span className="text-purple-300 font-bold uppercase tracking-wider">Tournament Active: {activeTournaments[0].name}</span>
+                        <div className="flex items-center gap-1 text-yellow-400 font-mono">
+                          <Coins size={16} /> {activeTournaments[0].prize.toLocaleString()}
+                        </div>
+                      </div>
+                    )}
                     <h2 className="text-xl text-slate-400 mb-2">Room Code</h2>
                     <div className="text-6xl font-mono font-black tracking-widest text-yellow-400 bg-black/30 p-4 rounded-xl inline-block border-2 border-dashed border-slate-600 select-all">
                         {roomCode}
@@ -351,7 +529,27 @@ export default function App() {
         )}
 
         {view === 'game' && (
-          <GameCanvas initialPlayers={players} onNewBestLap={handleNewBestLap} />
+          <div className="relative w-full h-full">
+            <GameCanvas initialPlayers={players} onNewBestLap={handleNewBestLap} />
+            {winner && (
+              <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 animate-in fade-in zoom-in duration-500">
+                <Trophy size={120} className="text-yellow-500 mb-6 animate-bounce" />
+                <h2 className="text-6xl font-black italic tracking-tighter text-white mb-2">RACE FINISHED!</h2>
+                <p className="text-3xl text-yellow-400 font-bold mb-8">{winner.name} WINS!</p>
+                <div className="flex gap-4">
+                  <button 
+                    onClick={() => {
+                      setWinner(null);
+                      setView('lobby');
+                    }}
+                    className="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-12 py-4 rounded-xl text-2xl transition-all active:scale-95"
+                  >
+                    BACK TO LOBBY
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </main>
     </div>

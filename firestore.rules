@@ -40,7 +40,17 @@ service cloud.firestore {
              (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() < 1000)) &&
              (!('bestLapTime' in data) || (data.bestLapTime is number && data.bestLapTime > 0)) &&
              (!('totalRaces' in data) || (data.totalRaces is number && data.totalRaces >= 0)) &&
-             (!('role' in data) || (data.role in ['user', 'admin']));
+             (!('role' in data) || (data.role in ['user', 'admin'])) &&
+             (!('coins' in data) || (data.coins is number && data.coins >= 0)) &&
+             (!('inventory' in data) || (data.inventory is list));
+    }
+
+    function isValidTournament(data) {
+      return data.keys().hasAll(['id', 'name', 'prize', 'status']) &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 &&
+             data.prize is number && data.prize >= 0 &&
+             data.status in ['active', 'completed'];
     }
 
     match /users/{userId} {
@@ -50,6 +60,12 @@ service cloud.firestore {
         (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) ||
         isAdmin()
       );
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidTournament(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /test/connection {

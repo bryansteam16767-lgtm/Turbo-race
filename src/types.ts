@@ -17,4 +17,6 @@ export type Player = {
   drifting: boolean;
   isSpectator: boolean;
   isAdmin: boolean;
+  coins: number;
+  inventory: string[];
 };
