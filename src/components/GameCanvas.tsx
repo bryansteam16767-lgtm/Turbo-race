@@ -936,7 +936,7 @@ export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPl
 
       {/* Bottom Left: Controls (Faded) */}
       {!isSpectator && (
-        <div className="absolute bottom-6 left-6 text-white pointer-events-none opacity-50 hover:opacity-100 transition-opacity duration-300">
+        <div className="absolute bottom-6 left-6 text-white pointer-events-none opacity-50 hidden md:block transition-opacity duration-300">
           <div className="bg-black/40 p-5 rounded-xl backdrop-blur-md border border-white/10">
               <h3 className="font-bold text-sm mb-2 text-yellow-400/80">Controls</h3>
               <ul className="text-xs space-y-1 font-mono text-slate-300">
@@ -946,6 +946,71 @@ export default function GameCanvas({ initialPlayers, onNewBestLap }: { initialPl
               <li>SPACE  : Drift</li>
               <li>SHIFT  : Nitro</li>
               </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Mobile Touch Controls */}
+      {!isSpectator && !controlsDisabled && (
+        <div className="absolute inset-0 pointer-events-none select-none">
+          {/* Left Side: Steering */}
+          <div className="absolute bottom-8 left-8 flex gap-4 pointer-events-auto">
+            <button 
+              onPointerDown={() => localPlayer.current.keys['KeyA'] = true}
+              onPointerUp={() => localPlayer.current.keys['KeyA'] = false}
+              onPointerLeave={() => localPlayer.current.keys['KeyA'] = false}
+              className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center active:bg-white/30 active:scale-95 transition-all text-3xl"
+            >
+              ←
+            </button>
+            <button 
+              onPointerDown={() => localPlayer.current.keys['KeyD'] = true}
+              onPointerUp={() => localPlayer.current.keys['KeyD'] = false}
+              onPointerLeave={() => localPlayer.current.keys['KeyD'] = false}
+              className="w-20 h-20 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 flex items-center justify-center active:bg-white/30 active:scale-95 transition-all text-3xl"
+            >
+              →
+            </button>
+          </div>
+
+          {/* Right Side: Pedals & Actions */}
+          <div className="absolute bottom-8 right-8 flex flex-col gap-4 items-end pointer-events-auto">
+            <div className="flex gap-4">
+              <button 
+                onPointerDown={() => localPlayer.current.keys['ShiftLeft'] = true}
+                onPointerUp={() => localPlayer.current.keys['ShiftLeft'] = false}
+                onPointerLeave={() => localPlayer.current.keys['ShiftLeft'] = false}
+                className="w-16 h-16 bg-blue-600/40 backdrop-blur-md rounded-full border border-blue-400/50 flex items-center justify-center active:bg-blue-500/60 active:scale-95 transition-all text-xs font-black italic"
+              >
+                NITRO
+              </button>
+              <button 
+                onPointerDown={() => localPlayer.current.keys['Space'] = true}
+                onPointerUp={() => localPlayer.current.keys['Space'] = false}
+                onPointerLeave={() => localPlayer.current.keys['Space'] = false}
+                className="w-16 h-16 bg-yellow-600/40 backdrop-blur-md rounded-full border border-yellow-400/50 flex items-center justify-center active:bg-yellow-500/60 active:scale-95 transition-all text-xs font-black italic"
+              >
+                DRIFT
+              </button>
+            </div>
+            <div className="flex gap-4">
+              <button 
+                onPointerDown={() => localPlayer.current.keys['KeyS'] = true}
+                onPointerUp={() => localPlayer.current.keys['KeyS'] = false}
+                onPointerLeave={() => localPlayer.current.keys['KeyS'] = false}
+                className="w-20 h-24 bg-red-600/20 backdrop-blur-md rounded-2xl border border-red-500/30 flex items-center justify-center active:bg-red-600/40 active:scale-95 transition-all text-xl font-bold"
+              >
+                BRAKE
+              </button>
+              <button 
+                onPointerDown={() => localPlayer.current.keys['KeyW'] = true}
+                onPointerUp={() => localPlayer.current.keys['KeyW'] = false}
+                onPointerLeave={() => localPlayer.current.keys['KeyW'] = false}
+                className="w-24 h-32 bg-green-600/30 backdrop-blur-md rounded-2xl border border-green-500/40 flex items-center justify-center active:bg-green-600/50 active:scale-95 transition-all text-3xl font-black italic"
+              >
+                GAS
+              </button>
+            </div>
           </div>
         </div>
       )}

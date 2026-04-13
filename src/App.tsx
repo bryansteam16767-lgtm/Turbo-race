@@ -258,44 +258,44 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-slate-900 flex flex-col items-center ${view === 'game' ? 'justify-start' : 'justify-center'} font-sans text-slate-100`}>
-      <header className={`w-full max-w-4xl mx-auto ${view === 'game' ? 'p-2' : 'p-6'} flex justify-between items-center transition-all`}>
-        <h1 className={`${view === 'game' ? 'text-2xl' : 'text-4xl'} font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 transform -skew-x-12 transition-all`}>
+      <header className={`w-full max-w-4xl mx-auto ${view === 'game' ? 'p-2' : 'p-4 md:p-6'} flex flex-col sm:flex-row justify-between items-center gap-4 transition-all`}>
+        <h1 className={`${view === 'game' ? 'text-2xl' : 'text-3xl md:text-4xl'} font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-orange-500 transform -skew-x-12 transition-all`}>
           TURBO RACE
         </h1>
         {user && view !== 'game' && (
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
-              <Coins className="text-yellow-500" size={18} />
-              <span className="font-mono font-bold text-yellow-400">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className="flex items-center gap-2 bg-slate-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-slate-700">
+              <Coins className="text-yellow-500" size={16} />
+              <span className="font-mono font-bold text-yellow-400 text-sm sm:text-base">
                 {(userProfile?.coins || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex flex-col items-end">
               <div className="flex items-center gap-2">
-                {isAdmin && <span className="text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Creator</span>}
-                <span className="text-sm font-bold text-slate-300">{user.displayName}</span>
+                {isAdmin && <span className="text-[8px] sm:text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded font-black uppercase tracking-tighter">Creator</span>}
+                <span className="text-xs sm:text-sm font-bold text-slate-300">{user.displayName}</span>
               </div>
               {userProfile && userProfile.bestLapTime !== Infinity && (
-                <span className="text-[10px] text-yellow-500 uppercase tracking-wider flex items-center gap-1">
+                <span className="text-[8px] sm:text-[10px] text-yellow-500 uppercase tracking-wider flex items-center gap-1">
                   <Trophy size={10} /> Best: {Math.floor(userProfile.bestLapTime / 1000)}s
                 </span>
               )}
             </div>
             <button 
               onClick={logout}
-              className="p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-red-400 transition-colors"
+              className="p-1.5 sm:p-2 hover:bg-slate-800 rounded-full text-slate-400 hover:text-red-400 transition-colors"
               title="Logout"
             >
-              <LogOut size={20} />
+              <LogOut size={18} />
             </button>
           </div>
         )}
       </header>
 
-      <nav className={`w-full max-w-4xl mx-auto flex gap-4 px-6 mb-4 ${view === 'game' ? 'hidden' : ''}`}>
-        <button onClick={() => setView('landing')} className={`px-4 py-2 rounded-lg font-bold transition-all ${view === 'landing' ? 'bg-yellow-500 text-black' : 'text-slate-400 hover:text-white'}`}>RACE</button>
-        <button onClick={() => setView('shop')} className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${view === 'shop' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}><ShoppingBag size={18}/> SHOP</button>
-        <button onClick={() => setView('tournaments')} className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center gap-2 ${view === 'tournaments' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}><Flag size={18}/> TOURNAMENTS</button>
+      <nav className={`w-full max-w-4xl mx-auto flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-4 px-4 sm:px-6 mb-4 ${view === 'game' ? 'hidden' : ''}`}>
+        <button onClick={() => setView('landing')} className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base font-bold transition-all ${view === 'landing' ? 'bg-yellow-500 text-black' : 'text-slate-400 hover:text-white'}`}>RACE</button>
+        <button onClick={() => setView('shop')} className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base font-bold transition-all flex items-center gap-2 ${view === 'shop' ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-white'}`}><ShoppingBag size={16}/> SHOP</button>
+        <button onClick={() => setView('tournaments')} className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-sm sm:text-base font-bold transition-all flex items-center gap-2 ${view === 'tournaments' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'}`}><Flag size={16}/> TOURNAMENTS</button>
       </nav>
 
       <main className={`flex-1 w-full flex flex-col items-center ${view === 'game' ? 'p-0' : 'p-4'} transition-all`}>
