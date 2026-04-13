@@ -224,7 +224,7 @@ export default function App() {
 
   const handleBuyItem = async (item: typeof SHOP_ITEMS[0]) => {
     if (!user || !userProfile) return;
-    if (userProfile.coins < item.price) {
+    if (!isAdmin && userProfile.coins < item.price) {
       setError("Not enough coins!");
       return;
     }
@@ -233,7 +233,7 @@ export default function App() {
       return;
     }
 
-    const newCoins = userProfile.coins - item.price;
+    const newCoins = isAdmin ? userProfile.coins : userProfile.coins - item.price;
     const newInventory = [...(userProfile.inventory || []), item.id];
     
     await updateDoc(doc(db, 'users', user.uid), {
@@ -267,7 +267,7 @@ export default function App() {
             <div className="flex items-center gap-2 bg-slate-800 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg border border-slate-700">
               <Coins className="text-yellow-500" size={16} />
               <span className="font-mono font-bold text-yellow-400 text-sm sm:text-base">
-                {(userProfile?.coins || 0).toLocaleString()}
+                {isAdmin ? '∞' : (userProfile?.coins || 0).toLocaleString()}
               </span>
             </div>
             <div className="flex flex-col items-end">
@@ -360,7 +360,9 @@ export default function App() {
               <h2 className="text-3xl font-black italic tracking-tighter text-blue-400">TURBO SHOP</h2>
               <div className="flex items-center gap-2 bg-black/30 px-4 py-2 rounded-xl border border-slate-600">
                 <Coins className="text-yellow-500" size={24} />
-                <span className="text-2xl font-mono font-bold text-yellow-400">{(userProfile?.coins || 0).toLocaleString()}</span>
+                <span className="text-2xl font-mono font-bold text-yellow-400">
+                  {isAdmin ? '∞' : (userProfile?.coins || 0).toLocaleString()}
+                </span>
               </div>
             </div>
 
